@@ -2,11 +2,14 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
-# Updated for /src/backend structure
-# Project root resolution (robust for local and Docker)
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-if not (BASE_DIR / "src").exists() and (BASE_DIR.parent / "src").exists():
-    BASE_DIR = BASE_DIR.parent
+# Robust project root resolution for local and Docker
+def find_root(p: Path) -> Path:
+    for parent in p.parents:
+        if (parent / "src").exists():
+            return parent
+    return p.parents[2]  # Fallback
+
+BASE_DIR = find_root(Path(__file__).resolve())
 
 class Settings(BaseSettings):
     openrouter_api_key: str = ""

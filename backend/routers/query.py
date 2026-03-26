@@ -2,6 +2,7 @@ import logging
 import time
 
 from fastapi import APIRouter, Request
+from google.api_core.exceptions import ResourceExhausted
 
 from db.connection import get_db
 from db.query_runner import run_query
@@ -24,69 +25,72 @@ OFF_TOPIC_RESPONSE = QueryResponse(
     on_topic=False,
 )
 
+RATE_LIMIT_RESPONSE = QueryResponse(
+    answer=(
+        "The AI is currently busy handling many requests (Rate Limit). "
+        "Please wait 15-20 seconds and try again."
+    ),
+    sql=None,
+    rows=[],
+    on_topic=True,
+)
+
 
 @router.post("/query", response_model=QueryResponse)
 @limiter.limit("10/minute")
 async def query(req: QueryRequest, request: Request):
-    """Natural language → SQL → answer pipeline.
-
-    1. Guardrail: is the question about O2C data?
-    2. Generate SQL from the question
-    3. Execute the SQL safely (SELECT only)
-    4. Generate a natural language answer from the results
-    """
+    """Natural language → SQL → answer pipeline with resilience."""
     start = time.time()
 
-    # step 1: guardrail
-    logger.info("checking guardrails for q=%.40s", req.question)
-    on_topic = await guardrails.is_on_topic(req.question)
-    if not on_topic:
-        logger.info("off-topic question rejected | q=%.40s", req.question)
-        return OFF_TOPIC_RESPONSE
-
-    # step 2: generate SQL
-    logger.info("generating SQL for q=%.40s", req.question)
     try:
+        # step 1: guardrail
+        logger.info("checking guardrails for q=%.40s", req.question)
+        on_topic = await guardrails.is_on_topic(req.question)
+        if not on_topic:
+            logger.info("off-topic question rejected | q=%.40s", req.question)
+            return OFF_TOPIC_RESPONSE
+
+        # step 2: generate SQL
+        logger.info("generating SQL for q=%.40s", req.question)
         sql = await sql_generator.generate_sql(req.question)
+
+        # step 3: execute SQL
+        logger.info("executing SQL: %.100s", sql)
+        conn = get_db()
+        try:
+            rows = run_query(sql, conn)
+            logger.info("SQL executed, found %d rows", len(rows))
+        except ValueError as e:
+            # run_query rejected it (not SELECT, multiple statements)
+            logger.warning("query blocked | reason=%s | sql=%.80s", e, sql)
+            return QueryResponse(
+                answer="That query was blocked for safety reasons. Try a different question.",
+                sql=sql,
+                rows=[],
+            )
+        except Exception:
+            logger.exception("query execution failed | sql=%.100s", sql)
+            return QueryResponse(
+                answer="Couldn't run that query — try rephrasing the question.",
+                sql=sql,
+                rows=[],
+            )
+
+        # step 4: generate answer
+        logger.info("generating natural language answer...")
+        answer = await responder.build_answer(req.question, sql, rows)
+
+        elapsed = time.time() - start
+        logger.info("query done in %.2fs | rows=%d | q=%.40s", elapsed, len(rows), req.question)
+        return QueryResponse(answer=answer, sql=sql, rows=rows, on_topic=True)
+
+    except ResourceExhausted:
+        logger.warning("Gemini rate limit exhausted after all retries | q=%.40s", req.question)
+        return RATE_LIMIT_RESPONSE
     except Exception:
-        logger.exception("sql generation failed | q=%.40s", req.question)
+        logger.exception("backend query pipeline failed | q=%.40s", req.question)
         return QueryResponse(
-            answer="Couldn't generate a query for that question — try rephrasing it.",
+            answer="Something went wrong on our end. Please try again in a moment.",
             sql=None,
             rows=[],
         )
-
-    # step 3: execute SQL
-    logger.info("executing SQL: %.100s", sql)
-    conn = get_db()
-    try:
-        rows = run_query(sql, conn)
-        logger.info("SQL executed, found %d rows", len(rows))
-    except ValueError as e:
-        # run_query rejected it (not SELECT, multiple statements)
-        logger.warning("query blocked | reason=%s | sql=%.80s", e, sql)
-        return QueryResponse(
-            answer="That query was blocked for safety reasons. Try a different question.",
-            sql=sql,
-            rows=[],
-        )
-    except Exception:
-        logger.exception("query execution failed | sql=%.100s", sql)
-        return QueryResponse(
-            answer="Couldn't run that query — try rephrasing the question.",
-            sql=sql,
-            rows=[],
-        )
-
-    # step 4: generate answer
-    logger.info("generating natural language answer...")
-    try:
-        answer = await responder.build_answer(req.question, sql, rows)
-    except Exception:
-        logger.exception("answer generation failed")
-        answer = f"Query returned {len(rows)} rows but answer generation failed. See the SQL and data below."
-
-    elapsed = time.time() - start
-    logger.info("query done in %.2fs | rows=%d | q=%.40s", elapsed, len(rows), req.question)
-
-    return QueryResponse(answer=answer, sql=sql, rows=rows, on_topic=True)

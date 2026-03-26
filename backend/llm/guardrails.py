@@ -1,6 +1,6 @@
 import logging
 
-from llm.client import get_model, settings
+from llm.client import get_model, settings, retry_gemini
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +12,7 @@ SYSTEM_PROMPT = (
 )
 
 
+@retry_gemini
 async def is_on_topic(question: str) -> bool:
     """Short LLM classification call. Returns True if the question is about O2C data."""
     # if no gemini key, we might have a configuration issue

@@ -1,11 +1,12 @@
 import logging
 
-from llm.client import get_model, settings
+from llm.client import get_model, settings, retry_gemini
 from prompts.answer_prompt import build_answer_messages
 
 logger = logging.getLogger(__name__)
 
 
+@retry_gemini
 async def build_answer(question: str, sql: str, rows: list[dict]) -> str:
     """Turn SQL results into a natural language answer."""
     if not rows:

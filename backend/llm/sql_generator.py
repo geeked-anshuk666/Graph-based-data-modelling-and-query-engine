@@ -1,7 +1,7 @@
 import logging
 import re
 
-from llm.client import get_model, settings
+from llm.client import get_model, settings, retry_gemini
 from prompts.sql_prompt import build_sql_messages
 
 logger = logging.getLogger(__name__)
@@ -11,6 +11,7 @@ _FENCE_RE = re.compile(r"^```(?:sql)?\s*\n?", re.MULTILINE)
 _FENCE_END = re.compile(r"\n?```\s*$", re.MULTILINE)
 
 
+@retry_gemini
 async def generate_sql(question: str) -> str:
     """Call the LLM to generate SQL from a natural language question."""
     if not settings.gemini_api_key:

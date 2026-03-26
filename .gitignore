@@ -9,3 +9,6 @@ _fields.txt
 _check_db.py
 .venv/
 .env.local
+
+.agent/
+.pytest_cache/

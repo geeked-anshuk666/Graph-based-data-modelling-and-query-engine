@@ -3,7 +3,10 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
 # Updated for /src/backend structure
+# Project root resolution (robust for local and Docker)
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
+if not (BASE_DIR / "src").exists() and (BASE_DIR.parent / "src").exists():
+    BASE_DIR = BASE_DIR.parent
 
 class Settings(BaseSettings):
     openrouter_api_key: str = ""

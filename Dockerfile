@@ -23,16 +23,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend source (from src/backend to /app/backend)
 COPY src/backend/ ./backend/
-# Copy the dataset (from src/dataset to /app/src/dataset)
-COPY src/dataset/ ./src/dataset/
-
-# Copy the built frontend static files to the backend/static directory
-COPY --from=frontend-builder /app/frontend/out /app/backend/static
-
-# Copy the database (stand-alone mode)
-COPY o2c.db .
-
-# Expose the single port
+    # Copy the dataset (from src/dataset to /app/src/dataset)
+    COPY src/dataset/ ./src/dataset/
+    
+    # Copy the built frontend static files to the backend/static directory
+    COPY --from=frontend-builder /app/frontend/out /app/backend/static
+    
+    # Expose the single port
 EXPOSE 8000
 
 # Set environment variables for production

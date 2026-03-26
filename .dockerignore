@@ -1,0 +1,30 @@
+# Node.js
+frontend/node_modules
+frontend/.next
+frontend/out
+frontend/.env.local
+
+# Python
+backend/__pycache__
+backend/*.pyc
+backend/*.pyo
+backend/*.pyd
+.venv
+.pytest_cache
+
+# Data/DB (Baking it in for foolproof, but ignore temp files)
+backend/o2c.db-shm
+backend/o2c.db-wal
+o2c.db-shm
+o2c.db-wal
+
+# Misc
+.git
+.gitignore
+.vscode
+.agent
+.gemini
+README.md
+docs
+PROMPTS_USED.md
+CHANGELOG.md

@@ -2,13 +2,14 @@ from pathlib import Path
 from pydantic import field_validator
 from pydantic_settings import BaseSettings
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+# Updated for /src/backend structure
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 class Settings(BaseSettings):
     openrouter_api_key: str = ""
     gemini_api_key: str = ""
     db_path: str = str(BASE_DIR / "o2c.db")
-    data_dir: str = str(BASE_DIR / "dataset/sap-order-to-cash-dataset/sap-o2c-data")
+    data_dir: str = str(BASE_DIR / "src/dataset/sap-order-to-cash-dataset/sap-o2c-data")
     allowed_origins: str = "http://localhost:3000,http://localhost:8888"
 
     @field_validator("db_path", "data_dir", mode="before")

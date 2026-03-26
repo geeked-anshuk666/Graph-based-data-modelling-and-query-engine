@@ -2,8 +2,10 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -63,6 +65,24 @@ app.add_middleware(
 app.include_router(graph.router)
 app.include_router(query.router)
 app.include_router(status.router)
+
+# serve static frontend files if directory exists (for Docker/Standalone)
+static_path = Path(__file__).parent / "static"
+if static_path.exists():
+    app.mount("/static", StaticFiles(directory=str(static_path)), name="static")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(request: Request, full_path: str):
+        # API routes are already handled above. Everything else goes to index.html
+        if full_path.startswith("api"):
+            return None # should have been caught by router
+        
+        file_path = static_path / full_path
+        if file_path.is_file():
+            return FileResponse(file_path)
+        
+        return FileResponse(static_path / "index.html")
+
 
 
 @app.get("/")

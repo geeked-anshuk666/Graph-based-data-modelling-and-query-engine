@@ -1,0 +1,11 @@
+.env
+o2c.db
+data/
+__pycache__/
+*.pyc
+node_modules/
+.next/
+_fields.txt
+_check_db.py
+.venv/
+.env.local

@@ -6,7 +6,7 @@ from prompts.sql_prompt import build_sql_messages
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+_MODEL = "gemini-1.5-flash"
 
 # strip markdown code fences the LLM sometimes wraps SQL in
 _FENCE_RE = re.compile(r"^```(?:sql)?\s*\n?", re.MULTILINE)
@@ -23,7 +23,8 @@ async def generate_sql(question: str) -> str:
         max_tokens=500,
     )
 
-    raw = resp.choices[0].message.content.strip()
+    content = resp.choices[0].message.content or ""
+    raw = content.strip()
 
     # strip code fences if present
     sql = _FENCE_RE.sub("", raw)

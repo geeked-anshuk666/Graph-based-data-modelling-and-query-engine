@@ -22,7 +22,9 @@ async def get_graph(request: Request):
     This just serializes it — no DB hit on every call.
     """
     graph = request.app.state.graph
-    return to_frontend(graph)
+    data = to_frontend(graph)
+    logger.info("serving graph with %d nodes and %d links", len(data['nodes']), len(data['links']))
+    return data
 
 
 @router.get("/node/{node_id}")

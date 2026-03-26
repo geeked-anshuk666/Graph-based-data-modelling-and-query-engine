@@ -5,7 +5,7 @@ from prompts.answer_prompt import build_answer_messages
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+_MODEL = "gemini-1.5-flash"
 
 
 async def build_answer(question: str, sql: str, rows: list[dict]) -> str:
@@ -21,4 +21,5 @@ async def build_answer(question: str, sql: str, rows: list[dict]) -> str:
         max_tokens=300,
     )
 
-    return resp.choices[0].message.content.strip()
+    content = resp.choices[0].message.content or ""
+    return content.strip()

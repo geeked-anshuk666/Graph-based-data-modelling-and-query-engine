@@ -38,12 +38,14 @@ async def query(req: QueryRequest, request: Request):
     start = time.time()
 
     # step 1: guardrail
+    logger.info("checking guardrails for q=%.40s", req.question)
     on_topic = await guardrails.is_on_topic(req.question)
     if not on_topic:
         logger.info("off-topic question rejected | q=%.40s", req.question)
         return OFF_TOPIC_RESPONSE
 
     # step 2: generate SQL
+    logger.info("generating SQL for q=%.40s", req.question)
     try:
         sql = await sql_generator.generate_sql(req.question)
     except Exception:
@@ -55,9 +57,11 @@ async def query(req: QueryRequest, request: Request):
         )
 
     # step 3: execute SQL
+    logger.info("executing SQL: %.100s", sql)
     conn = get_db()
     try:
         rows = run_query(sql, conn)
+        logger.info("SQL executed, found %d rows", len(rows))
     except ValueError as e:
         # run_query rejected it (not SELECT, multiple statements)
         logger.warning("query blocked | reason=%s | sql=%.80s", e, sql)
@@ -75,6 +79,7 @@ async def query(req: QueryRequest, request: Request):
         )
 
     # step 4: generate answer
+    logger.info("generating natural language answer...")
     try:
         answer = await responder.build_answer(req.question, sql, rows)
     except Exception:

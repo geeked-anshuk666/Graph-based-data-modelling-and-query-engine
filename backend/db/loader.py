@@ -78,8 +78,17 @@ def _insert_rows(conn: sqlite3.Connection, table: str, rows: list[dict]):
 def load_all(data_dir: Path, db_path: Path):
     """Main entry point: create schema, load all entities from JSONL."""
     if db_path.exists():
-        logger.info("database already exists at %s, skipping load", db_path)
-        return
+        # if file exists, check if it actually has data (schema tables)
+        try:
+            conn = sqlite3.connect(str(db_path))
+            cursor = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='sales_order_headers'")
+            found = cursor.fetchone()
+            conn.close()
+            if found:
+                logger.info("database with data already exists at %s, skipping load", db_path)
+                return
+        except Exception:
+            pass
 
     schema_path = Path(__file__).parent / "schema.sql"
     conn = sqlite3.connect(str(db_path))

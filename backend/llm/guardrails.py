@@ -4,7 +4,7 @@ from llm.client import get_client
 
 logger = logging.getLogger(__name__)
 
-_MODEL = "nvidia/nemotron-3-super-120b-a12b:free"
+_MODEL = "gemini-1.5-flash"
 
 SYSTEM_PROMPT = (
     "You classify questions as on-topic or off-topic for an SAP Order-to-Cash dataset. "
@@ -29,7 +29,8 @@ async def is_on_topic(question: str) -> bool:
             temperature=0.0,
             max_tokens=10,
         )
-        answer = resp.choices[0].message.content.strip().lower()
+        content = resp.choices[0].message.content or ""
+        answer = content.strip().lower()
         return answer.startswith("yes")
     except Exception:
         logger.exception("guardrail check failed, defaulting to on-topic")
